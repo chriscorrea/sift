@@ -1,0 +1,56 @@
+# .goreleaser.yml
+
+project_name: sift
+
+# run before the build.
+before:
+  hooks:
+    - go mod tidy
+
+# config for build
+builds:
+  - id: sift
+    main: .
+    binary: sift
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+
+checksum:
+  name_template: "checksums.txt"
+
+# package into Homebrew formulas.
+brews:
+  - name: sift
+    tap:
+      owner: chriscorrea
+      name: homebrew-sift
+    homepage: "https://github.com/chriscorrea/sift"
+    description: "Build LLM workflows on the command line"
+    test: |
+      system "#{bin}/sift --help"
+
+archives:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+  format_overrides:
+    - goos: windows
+      format: zip
+  # add important files to the archive root (binary auto included)
+  files:
+    - README.md
+    - LICENSE
+
+changelog:
+  sort: asc
+  filters:
+    - regexp: '(?i)^(docs|test|style|chore|ci):'
+
+# enables creation of GitHub releases
+release:
+  github:
+    owner: chriscorrea
+    name: sift
