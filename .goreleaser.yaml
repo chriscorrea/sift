@@ -1,13 +1,13 @@
-# .goreleaser.yml
+# .goreleaser.yaml
 
 project_name: sift
 
-# run before the build.
+# Run before the build
 before:
   hooks:
     - go mod tidy
 
-# config for build
+# Build configuration
 builds:
   - id: sift
     main: ./cmd/sift/
@@ -20,13 +20,24 @@ builds:
       - amd64
       - arm64
 
+# Archive configuration
+archives:
+  - name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+
+# Checksum configuration
 checksum:
   name_template: "checksums.txt"
 
-# package into Homebrew formulas.
+# Homebrew formula configuration
 brews:
   - name: sift
-    tap:
+    repository:
       owner: chriscorrea
       name: homebrew-sift
     homepage: "https://github.com/chriscorrea/sift"
@@ -34,22 +45,18 @@ brews:
     test: |
       system "#{bin}/sift --help"
 
-archives:
-  name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-  format_overrides:
-    - goos: windows
-      format: zip
-  # add important files to the archive root (binary auto included)
-  files:
-    - README.md
-    - LICENSE
-
+# Changelog configuration
 changelog:
   sort: asc
   filters:
-    - regexp: '(?i)^(docs|test|style|chore|ci):'
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^style:"
+      - "^chore:"
+      - "^ci:"
 
-# enables creation of GitHub releases
+# GitHub release configuration
 release:
   github:
     owner: chriscorrea
