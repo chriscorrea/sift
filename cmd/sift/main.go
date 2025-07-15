@@ -7,8 +7,8 @@ import (
 	"os"
 	"os/signal"
 
-	"sift/internal/app"
-	"sift/internal/counter"
+	"github.com/chriscorrea/sift/internal/app"
+	"github.com/chriscorrea/sift/internal/counter"
 
 	"github.com/spf13/cobra"
 )

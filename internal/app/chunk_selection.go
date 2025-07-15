@@ -7,8 +7,8 @@ import (
 	"sort"
 	"strings"
 
-	"sift/internal/chunk"
-	"sift/internal/counter"
+	"github.com/chriscorrea/sift/internal/chunk"
+	"github.com/chriscorrea/sift/internal/counter"
 )
 
 // ChunkingConfig centralizes all chunk sizing parameters to eliminate hard-coded constants

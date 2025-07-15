@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"sift/internal/counter"
+	"github.com/chriscorrea/sift/internal/counter"
 )
 
 func TestConfig_IncludeAll(t *testing.T) {

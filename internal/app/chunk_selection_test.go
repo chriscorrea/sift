@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"sift/internal/counter"
+	"github.com/chriscorrea/sift/internal/counter"
 )
 
 // test data for chunk selection tests

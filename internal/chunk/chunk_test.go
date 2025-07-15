@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"sift/internal/chunk"
+	"github.com/chriscorrea/sift/internal/chunk"
 )
 
 func TestSplitText(t *testing.T) {

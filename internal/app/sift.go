@@ -10,12 +10,12 @@ import (
 	"sort"
 	"strings"
 
-	"sift/internal/classify"
-	"sift/internal/counter"
-	"sift/internal/extract"
-	"sift/internal/fetch"
-	"sift/internal/spinner"
-	"sift/internal/tfidf"
+	"github.com/chriscorrea/sift/internal/classify"
+	"github.com/chriscorrea/sift/internal/counter"
+	"github.com/chriscorrea/sift/internal/extract"
+	"github.com/chriscorrea/sift/internal/fetch"
+	"github.com/chriscorrea/sift/internal/spinner"
+	"github.com/chriscorrea/sift/internal/tfidf"
 )
 
 // OutputFormat defines the output format for results

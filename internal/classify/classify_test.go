@@ -3,7 +3,7 @@ package classify_test
 import (
 	"testing"
 
-	"sift/internal/classify"
+	"github.com/chriscorrea/sift/internal/classify"
 )
 
 func TestNewClassifier(t *testing.T) {

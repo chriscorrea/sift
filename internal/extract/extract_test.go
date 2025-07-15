@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"sift/internal/extract"
+	"github.com/chriscorrea/sift/internal/extract"
 )
 
 const (

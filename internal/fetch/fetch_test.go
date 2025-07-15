@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"sift/internal/fetch"
+	"github.com/chriscorrea/sift/internal/fetch"
 )
 
 func TestGetContent(t *testing.T) {
