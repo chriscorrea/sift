@@ -1,0 +1,41 @@
+
+name: GoReleaser
+
+on:
+  push:
+    tags:
+      - "v*"
+    # manual trigger
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "The tag to release (e.g., v1.2.3)"
+        required: true
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+          # for changelog
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.x'
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v5
+        with:
+          # 'dist' is the default dir, pass the args to GoReleaser:
+          args: release --clean
+        env:
+          # required to create GH release
+          GITHUB_TOKEN: ${{ secrets.SIFT_GITHUB_TOKEN }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.SIFT_GITHUB_TOKEN }}
