@@ -1,5 +1,11 @@
 # 🧑‍🍳 Sift
 
+[![Go Version](https://img.shields.io/github/go-mod/go-version/chriscorrea/sift)](go.mod)
+[![Go Report Card](https://goreportcard.com/badge/github.com/chriscorrea/sift)](https://goreportcard.com/report/github.com/chriscorrea/sift)
+[![CI](https://github.com/chriscorrea/sift/actions/workflows/push.yml/badge.svg?branch=main)](https://github.com/chriscorrea/sift/actions/workflows/push.yml)
+[![Latest Release](https://img.shields.io/github/v/release/chriscorrea/sift)](https://github.com/chriscorrea/sift/releases)
+
+
 **A prep tool for your text-based recipes**
 
 Sift is a command-line tool that extracts clean, structured text from messy sources. Feed it URLs, text files, or stdin, and `sift` automatically extracts core content.
@@ -25,7 +31,7 @@ You can download a pre-compiled binary for your operating system from [latest re
 ### Go Install
 If you have a Go environment set up, you can install `sift` directly:
 ```bash
-go install github.com/your-username/sift/cmd/sift@latest
+go install github.com/chriscorrea/sift/cmd/sift@latest
 ```
 
 ## Quick Start
@@ -49,9 +55,9 @@ sift https://www.marcuse.org/herbert/pubs/64onedim/odmintro.html --search "techn
 
 Chain with other command line tools, such as [slop for LLMs](https://github.com/chriscorrea/slop):
 ```bash
-sift https://www.marcuse.org/herbert/pubs/64onedim/odmintro.html --search "technology" -t 200
+sift https://www.recipetineats.com/carrot-cake/ | \
+slop --yaml "build a shopping list, organized by aisle"
 ```
-
 
 ## Usage
 
