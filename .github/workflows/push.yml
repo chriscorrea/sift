@@ -1,0 +1,51 @@
+name: CI
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the "main" branch
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  
+jobs:
+  test-and-lint:
+    name: Test and Lint
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.x'
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+            go-version: '1.24'
+
+        # run make link locally
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
+    
+      - name: Download dependencies
+        run: make dependencies
+
+      - name: Check go mod tidy
+        run: |
+          make tidy
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "go.mod or go.sum needs to be updated"
+            git diff
+            exit 1
+          fi
+
+      - name: Run test
+        run: make test
+
+      - name: Build
+        run: make build
