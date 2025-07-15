@@ -10,7 +10,7 @@ before:
 # config for build
 builds:
   - id: sift
-    main: .
+    main: ./cmd/sift/
     binary: sift
     goos:
       - linux
