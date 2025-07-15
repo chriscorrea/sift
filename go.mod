@@ -1,4 +1,4 @@
-module sift
+module github.com/chriscorrea/sift
 
 go 1.24.3
 
