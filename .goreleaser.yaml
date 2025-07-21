@@ -2,16 +2,17 @@
 
 project_name: sift
 
-# Run before the build
+# run before the build
 before:
   hooks:
     - go mod tidy
 
-# Build configuration
+# build config
 builds:
   - id: sift
-    main: ./cmd/sift/
-    binary: sift
+    # Create static binaries without CGO dependencies for better portability.
+    env:
+      - CGO_ENABLED=0
     goos:
       - linux
       - windows
@@ -19,8 +20,15 @@ builds:
     goarch:
       - amd64
       - arm64
+    # main package is in 'cmd/sift'.
+    main: ./cmd/sift/
+    # inject version information into the binary.
+    # this will allow for 'sift --version'.
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=goreleaser
+    binary: sift
 
-# Archive configuration
+# archive config
 archives:
   - name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
@@ -30,22 +38,32 @@ archives:
       - README.md
       - LICENSE
 
-# Checksum configuration
+# checksum config
 checksum:
   name_template: "checksums.txt"
 
-# Homebrew formula configuration
+# homebrew tap config
 brews:
   - name: sift
-    repository:
+    homepage: "https://github.com/chriscorrea/sift"
+    description: "Strips tags from html and extract clean, structured text on the command line"
+    # use the modern 'tap' block for Homebrew config
+    tap:
       owner: chriscorrea
       name: homebrew-sift
-    homepage: "https://github.com/chriscorrea/sift"
-    description: "Build LLM workflows on the command line"
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    # set a consistent author for commits to the tap.
+    commit_author:
+      name: goreleaser-bot
+      email: bot@goreleaser.com
+    # define installation steps for the binary and man pages.
+    install: |
+      bin.install "sift"
+      # man1.install "man/sift.1"
     test: |
       system "#{bin}/sift --help"
 
-# Changelog configuration
+# changelog config
 changelog:
   sort: asc
   filters:
@@ -55,8 +73,14 @@ changelog:
       - "^style:"
       - "^chore:"
       - "^ci:"
+      - "Merge pull request"
+      - "Merge branch"
 
-# GitHub release configuration
+# snapshot configuration for pre-releases
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+# GitHub release config.
 release:
   github:
     owner: chriscorrea
