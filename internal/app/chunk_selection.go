@@ -79,9 +79,9 @@ type ChunkSelector struct {
 	maxUnits             int
 	strategy             SizingStrategy
 	config               ChunkingConfig
-	defaultContextBefore int  // default context before chunks for non-search scenarios
-	defaultContextAfter  int  // default context after chunks for non-search scenarios
-	isSearchMode         bool // true when processing search results, enables gap detection
+	defaultContextBefore int                // default context before chunks for non-search scenarios
+	defaultContextAfter  int                // default context after chunks for non-search scenarios
+	isSearchMode         bool               // true when processing search results, enables gap detection
 	contextCalculator    *ContextCalculator // cached context calculator for smart context
 }
 
@@ -205,7 +205,6 @@ func (cs *ChunkSelector) determineSeparator(prevChunk, currentChunk string) stri
 		return "" // first chunk, no separator needed
 	}
 
-
 	// Original behavior: check if previous chunk ends with natural paragraph indicators
 	prevTrimmed := strings.TrimSpace(prevChunk)
 	if prevTrimmed == "" {
@@ -229,7 +228,6 @@ func (cs *ChunkSelector) determineSeparator(prevChunk, currentChunk string) stri
 	// default to single line break for general text flow
 	return "\n"
 }
-
 
 // removeOverlapPrefix removes overlapping text from the start of currentChunk
 // that matches the end of previousChunk, using word-boundary detection

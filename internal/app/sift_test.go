@@ -85,7 +85,7 @@ func TestApplyContentTransformations_IncludeAll(t *testing.T) {
 				IncludeAll:     tt.includeAll,
 			}
 
-			result, err := applyContentTransformations(context.Background(), tt.text, cfg.CountingMethod, cfg.MaxUnits, cfg.SizingStrategy, cfg.IncludeAll, cfg.SearchQuery, cfg.Quiet, cfg.ContextBefore, cfg.ContextAfter, false, 0, false)
+			result, err := applyContentTransformations(context.Background(), tt.text, cfg.CountingMethod, cfg.MaxUnits, cfg.SizingStrategy, cfg.IncludeAll, cfg.SearchQuery, cfg.Quiet, cfg.ContextBefore, cfg.ContextAfter, 0, false)
 
 			if err != nil {
 				t.Fatalf("applyContentTransformations() error = %v", err)
@@ -163,7 +163,7 @@ References: Department of Education. 5th Edition. Foundation Publications, 2023.
 				IncludeAll:     tt.includeAll,
 			}
 
-			result, err := applyContentTransformations(context.Background(), testDocument, cfg.CountingMethod, cfg.MaxUnits, cfg.SizingStrategy, cfg.IncludeAll, cfg.SearchQuery, cfg.Quiet, cfg.ContextBefore, cfg.ContextAfter, false, 0, false)
+			result, err := applyContentTransformations(context.Background(), testDocument, cfg.CountingMethod, cfg.MaxUnits, cfg.SizingStrategy, cfg.IncludeAll, cfg.SearchQuery, cfg.Quiet, cfg.ContextBefore, cfg.ContextAfter, 0, false)
 			if err != nil {
 				t.Fatalf("applyContentTransformations() error = %v", err)
 			}

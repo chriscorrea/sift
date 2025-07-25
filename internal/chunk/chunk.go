@@ -63,7 +63,7 @@ func SplitText(text string, maxChunkSize int) []string {
 		slog.Debug("Empty text after full whitespace trimming")
 		return []string{}
 	}
-	
+
 	// use gentle trimming to preserve intentional line breaks
 	text = trimSpacesOnly(text)
 
