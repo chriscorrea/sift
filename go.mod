@@ -5,6 +5,7 @@ go 1.24.3
 require (
 	github.com/JohannesKaufmann/html-to-markdown v1.6.0
 	github.com/PuerkitoBio/goquery v1.9.2
+	github.com/chriscorrea/bm25md v0.0.0-20250724153334-0bf9e79a5fd2
 	github.com/go-shiori/go-readability v0.0.0-20250217085726-9f5bf5ca7612
 	github.com/kljensen/snowball v0.10.0
 	github.com/pkoukk/tiktoken-go v0.1.7
@@ -21,6 +22,7 @@ require (
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
+	github.com/yuin/goldmark v1.7.13 // indirect
 	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
 	golang.org/x/text v0.23.0 // indirect

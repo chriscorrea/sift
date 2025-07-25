@@ -10,12 +10,12 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/chriscorrea/bm25md"
 	"github.com/chriscorrea/sift/internal/classify"
 	"github.com/chriscorrea/sift/internal/counter"
 	"github.com/chriscorrea/sift/internal/extract"
 	"github.com/chriscorrea/sift/internal/fetch"
 	"github.com/chriscorrea/sift/internal/spinner"
-	"github.com/chriscorrea/sift/internal/tfidf"
 )
 
 // OutputFormat defines the output format for results
@@ -44,34 +44,36 @@ func (f OutputFormat) String() string {
 	}
 }
 
-// ChunkScore represents a chunk with its TF-IDF score and original index
+// ChunkScore represents a chunk with its BM25md score and original index.
 type ChunkScore struct {
 	Chunk string  // text content of the chunk
-	Score float64 // TF-IDF score (higher = more relevant)
+	Score float64 // BM25md score (higher = more relevant)
 	Index int     // original index in the document
 }
 
 // Config holds all configuration options for the sift application.
 type Config struct {
-	Sources        []string               // URLs, file paths, or "-" for stdin
-	Selector       string                 // CSS selector for content extraction
-	MaxUnits       int                    // max output units (tokens/words/characters)
-	CountingMethod counter.CountingMethod // method for counting text units
-	SizingStrategy SizingStrategy
-	SearchQuery    string
-	OutputFormat   OutputFormat // output format (md/txt/json)
-	ContextBefore  int          // chunks to include before targeted search result chunk (default: 1)
-	ContextAfter   int          // chunks to include after targeted search result chunk (default: 2)
-	Quiet          bool         // suppress info messages
-	Debug          bool
-	IncludeAll     bool // include all content without readability or classification filtering
+	Sources         []string               // URLs, file paths, or "-" for stdin
+	Selector        string                 // CSS selector for content extraction
+	MaxUnits        int                    // max output units (tokens/words/characters)
+	CountingMethod  counter.CountingMethod // method for counting text units
+	SizingStrategy  SizingStrategy
+	SearchQuery     string
+	OutputFormat    OutputFormat // output format (md/txt/json)
+	ContextBefore   int          // chunks to include before targeted search result chunk (default: 1)
+	ContextAfter    int          // chunks to include after targeted search result chunk (default: 2)
+	ContextUnits    int          // smart context: total units per search result (including target chunk)
+	UseSmartContext bool         // whether to use smart context calculation instead of fixed chunk counts
+	Quiet           bool         // suppress info messages
+	Debug           bool
+	IncludeAll      bool // include all content without readability or classification filtering
 }
 
 // Run executes the main sift application logic with the given configuration.
 //
 // Processing Pipeline:
 // 1. Extract and combine content from all sources (extractAndCombineContent)
-// 2. Apply relevant transformations (applyContentTransformations)
+// 2. Apply transformations based on search vs non-search scenarios
 //
 // ctx allows for cancellation and timeout control of long-running operations.
 func Run(ctx context.Context, cfg Config) (string, error) {
@@ -85,12 +87,20 @@ func Run(ctx context.Context, cfg Config) (string, error) {
 		return "", err
 	}
 
-	// step 2: apply relevant transformations
-	if cfg.MaxUnits > 0 {
-		return applyContentTransformations(ctx, combinedContent, cfg.CountingMethod, cfg.MaxUnits, cfg.SizingStrategy, cfg.IncludeAll, cfg.SearchQuery, cfg.Quiet, cfg.ContextBefore, cfg.ContextAfter)
+	// step 2: apply transformations based on scenario
+	searchQuery := strings.TrimSpace(cfg.SearchQuery)
+
+	// no search query = simple processing
+	if searchQuery == "" {
+		if cfg.MaxUnits <= 0 {
+			return combinedContent, nil // return full content
+		}
+		return applySimpleSizeLimit(combinedContent, cfg.MaxUnits, cfg.CountingMethod), nil
 	}
 
-	return combinedContent, nil
+	// search query = advanced chunking + BM25md
+	// note: maxUnits may be 0 for search-only (no size limit)
+	return applySearchTransformations(ctx, combinedContent, cfg)
 }
 
 // extractAndCombineContent processes all sources and combines their content with appropriate separators.
@@ -148,14 +158,14 @@ func processSource(ctx context.Context, source, selector string, includeAll, qui
 	return markdown, nil
 }
 
-// applyContentTransformations coordinates the application of size constraints and transformations.
+// applyContentTransformations coordinates the application of size constraints and transformations with smart context support.
 //
 // Transformation Pipeline:
 // 1. prepare chunks (chunking, filtering)
 // 2. apply transformations (search, sizing)
 //
 // ctx allows for cancellation of search operations within size constraint application.
-func applyContentTransformations(ctx context.Context, text string, countingMethod counter.CountingMethod, maxUnits int, sizingStrategy SizingStrategy, includeAll bool, searchQuery string, quiet bool, contextBefore, contextAfter int) (string, error) {
+func applyContentTransformations(ctx context.Context, text string, countingMethod counter.CountingMethod, maxUnits int, sizingStrategy SizingStrategy, includeAll bool, searchQuery string, quiet bool, contextBefore, contextAfter int, contextUnits int, useSmartContext bool) (string, error) {
 	// step 1: prepare chunks for processing
 	selector, chunks, err := prepareChunksForProcessing(text, countingMethod, maxUnits, sizingStrategy, includeAll)
 	if err != nil {
@@ -166,8 +176,8 @@ func applyContentTransformations(ctx context.Context, text string, countingMetho
 		return "", nil
 	}
 
-	// step 2: apply transformations
-	return applyTransformations(ctx, chunks, selector, searchQuery, quiet, contextBefore, contextAfter)
+	// step 2: apply transformations with context configuration
+	return applyTransformations(ctx, chunks, selector, searchQuery, quiet, contextBefore, contextAfter, contextUnits, useSmartContext)
 }
 
 // prepareChunksForProcessing sets up the ChunkSelector and prepares filtered chunks ready for transformation
@@ -202,8 +212,8 @@ func prepareChunksForProcessing(text string, countingMethod counter.CountingMeth
 	return selector, chunks, nil
 }
 
-// applyTransformations handles chunk selection using a unified pathway for both search and normal sizing
-func applyTransformations(ctx context.Context, chunks []string, selector *ChunkSelector, searchQuery string, quiet bool, contextBefore, contextAfter int) (string, error) {
+// applyTransformations handles chunk selection with optional smart context support using a unified pathway
+func applyTransformations(ctx context.Context, chunks []string, selector *ChunkSelector, searchQuery string, quiet bool, contextBefore, contextAfter, contextUnits int, useSmartContext bool) (string, error) {
 	var orderedChunks []ChunkWithIndex
 	var finalContextBefore, finalContextAfter int
 
@@ -232,7 +242,7 @@ func applyTransformations(ctx context.Context, chunks []string, selector *ChunkS
 	}
 
 	// single point of chunk selection (unified pathway)
-	result, err := selector.Select(orderedChunks, chunks, finalContextBefore, finalContextAfter)
+	result, err := selector.SelectWithContextConfig(orderedChunks, chunks, finalContextBefore, finalContextAfter, contextUnits, useSmartContext)
 	if err != nil {
 		return "", fmt.Errorf("failed to select chunks: %w", err)
 	}
@@ -240,7 +250,7 @@ func applyTransformations(ctx context.Context, chunks []string, selector *ChunkS
 	return result, nil
 }
 
-// performLexicalSearch sorts chunks by relevance using TF-IDF keyword matching
+// performLexicalSearch sorts chunks by relevance using BM25md field-weighted ranking
 // ctx allows for cancellation of search operations.
 func performLexicalSearch(ctx context.Context, chunks []string, searchQuery string, quiet bool) ([]ChunkScore, error) {
 	if len(chunks) == 0 {
@@ -255,8 +265,21 @@ func performLexicalSearch(ctx context.Context, chunks []string, searchQuery stri
 		defer sp.Stop()
 	}
 
-	// create TF-IDF corpus from chunks
-	corpus := tfidf.NewCorpus(chunks)
+	// create BM25md corpus with default field weights and parameters
+	corpus := bm25md.NewCorpus()
+
+	// parse chunks as markdown documents and add to corpus
+	parser := bm25md.NewMarkdownFieldParser()
+	for i, chunk := range chunks {
+		// parse the chunk to extract field-specific content
+		fields := parser.ParseDocument(chunk)
+		doc := bm25md.Document{
+			ID:       i,
+			Fields:   fields,
+			Original: chunk,
+		}
+		corpus.AddDocument(doc)
+	}
 
 	// score each chunk based on the search query
 	var scoredChunks []ChunkScore
@@ -275,4 +298,80 @@ func performLexicalSearch(ctx context.Context, chunks []string, searchQuery stri
 	})
 
 	return scoredChunks, nil
+}
+
+// applySimpleSizeLimit truncates content to fit within the specified unit limit
+// by iterating through the content while preserving line breaks and word boundaries.
+func applySimpleSizeLimit(content string, maxUnits int, countingMethod counter.CountingMethod) string {
+	if maxUnits <= 0 {
+		return content
+	}
+
+	textCounter, err := counter.NewCounter(countingMethod)
+	if err != nil {
+		// fallback to returning original content if counter creation fails
+		return content
+	}
+
+	// split content into tokens (words + whitespace) while preserving all formatting
+	var tokens []string
+	var currentToken strings.Builder
+	inWord := false
+
+	runes := []rune(content)
+	for i, r := range runes {
+		isSpace := r == ' ' || r == '\t' || r == '\n' || r == '\r'
+
+		if isSpace && inWord {
+			// ending a word, save it
+			if currentToken.Len() > 0 {
+				tokens = append(tokens, currentToken.String())
+				currentToken.Reset()
+			}
+			inWord = false
+		}
+
+		if !isSpace && !inWord {
+			// starting a new word
+			inWord = true
+		}
+
+		currentToken.WriteRune(r)
+
+		// if this is the last character, save the current token
+		if i == len(runes)-1 && currentToken.Len() > 0 {
+			tokens = append(tokens, currentToken.String())
+		}
+	}
+
+	// now build result by adding tokens until limit is reached
+	var result strings.Builder
+	currentUnits := 0
+
+	for _, token := range tokens {
+		tokenUnits := textCounter.Count(token)
+
+		// check if adding this token would exceed the limit
+		if currentUnits+tokenUnits > maxUnits {
+			break
+		}
+
+		result.WriteString(token)
+		currentUnits += tokenUnits
+
+		// stop if we've reached the exact limit
+		if currentUnits >= maxUnits {
+			break
+		}
+	}
+
+	// trim any trailing whitespace from the final result
+	return strings.TrimRightFunc(result.String(), func(r rune) bool {
+		return r == ' ' || r == '\t' || r == '\n' || r == '\r'
+	})
+}
+
+// applySearchTransformations handles search-based content processing with chunking and BM25md
+func applySearchTransformations(ctx context.Context, content string, cfg Config) (string, error) {
+	return applyContentTransformations(ctx, content, cfg.CountingMethod, cfg.MaxUnits, cfg.SizingStrategy, cfg.IncludeAll, cfg.SearchQuery, cfg.Quiet, cfg.ContextBefore, cfg.ContextAfter, cfg.ContextUnits, cfg.UseSmartContext)
 }

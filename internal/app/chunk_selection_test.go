@@ -236,7 +236,7 @@ func TestChunkSelector_ApplySizeConstraints_EdgeCases(t *testing.T) {
 
 			if tt.maxUnits <= 0 && len(tt.chunks) > 0 {
 				// should return concatenated original chunks when no size limit
-				expected := strings.Join(tt.chunks, "\n\n")
+				expected := strings.Join(tt.chunks, "\n")
 				if result != expected && result != tt.chunks[0] { // single chunk case
 					t.Errorf("Expected original content when maxUnits≤0, got %q", result)
 				}
@@ -579,21 +579,21 @@ func TestChunkSelector_OutputOrderWithSizeConstraints(t *testing.T) {
 			name:           "Beginning strategy with 2 chunks",
 			strategy:       Beginning,
 			maxWords:       2, // 2 words total - should fit exactly 2 chunks
-			expectedOutput: "chunk0\n\nchunk1",
+			expectedOutput: "chunk0\nchunk1",
 			expectedChunks: []string{"chunk0", "chunk1"},
 		},
 		{
 			name:           "End strategy with 2 chunks",
 			strategy:       End,
 			maxWords:       2,
-			expectedOutput: "chunk3\n\nchunk4", // should be last 2 chunks *in document order*
+			expectedOutput: "chunk3\nchunk4", // should be last 2 chunks *in document order*
 			expectedChunks: []string{"chunk3", "chunk4"},
 		},
 		{
 			name:           "Middle strategy with 2 chunks",
 			strategy:       Middle,
-			maxWords:       2,                  // 2 words total
-			expectedOutput: "chunk2\n\nchunk3", // should be middle chunks *in document order*
+			maxWords:       2,                // 2 words total
+			expectedOutput: "chunk2\nchunk3", // should be middle chunks *in document order*
 			expectedChunks: []string{"chunk2", "chunk3"},
 		},
 	}
@@ -667,7 +667,7 @@ func TestChunkSelector_SelectWithContextWindows(t *testing.T) {
 			contextAfter:   0,
 			maxWords:       10,
 			expectedChunks: []string{"B", "C", "D"}, // 2 before + target
-			expectedOutput: "B\n\nC\n\nD",
+			expectedOutput: "B\nC\nD",
 		},
 		{
 			name:           "After context only - single target",
@@ -676,7 +676,7 @@ func TestChunkSelector_SelectWithContextWindows(t *testing.T) {
 			contextAfter:   2,
 			maxWords:       10,
 			expectedChunks: []string{"D", "E", "F"}, // target + 2 after
-			expectedOutput: "D\n\nE\n\nF",
+			expectedOutput: "D\nE\nF",
 		},
 		{
 			name:           "Symmetric context - single target",
@@ -685,7 +685,7 @@ func TestChunkSelector_SelectWithContextWindows(t *testing.T) {
 			contextAfter:   1,
 			maxWords:       10,
 			expectedChunks: []string{"C", "D", "E"}, // 1 before + target + 1 after
-			expectedOutput: "C\n\nD\n\nE",
+			expectedOutput: "C\nD\nE",
 		},
 		{
 			name:           "Context at beginning boundary",
@@ -694,7 +694,7 @@ func TestChunkSelector_SelectWithContextWindows(t *testing.T) {
 			contextAfter:   1,
 			maxWords:       10,
 			expectedChunks: []string{"A", "B"}, // no chunks before index 0
-			expectedOutput: "A\n\nB",
+			expectedOutput: "A\nB",
 		},
 		{
 			name:           "Context at end boundary",
@@ -703,7 +703,7 @@ func TestChunkSelector_SelectWithContextWindows(t *testing.T) {
 			contextAfter:   2, // should not go beyond last index
 			maxWords:       10,
 			expectedChunks: []string{"F", "G"}, // o chunks after last index
-			expectedOutput: "F\n\nG",
+			expectedOutput: "F\nG",
 		},
 		{
 			name:           "Multiple targets with overlapping context",
@@ -712,7 +712,7 @@ func TestChunkSelector_SelectWithContextWindows(t *testing.T) {
 			contextAfter:   1,
 			maxWords:       10,
 			expectedChunks: []string{"B", "C", "D", "E", "F"}, // overlapping context merged
-			expectedOutput: "B\n\nC\n\nD\n\nE\n\nF",
+			expectedOutput: "B\nC\nD\nE\nF",
 		},
 		{
 			name:           "Context with size limit - cuts off excess",
@@ -721,7 +721,7 @@ func TestChunkSelector_SelectWithContextWindows(t *testing.T) {
 			contextAfter:   2,
 			maxWords:       3,                       // limit to 3 words total
 			expectedChunks: []string{"B", "C", "D"}, // should include target + some context
-			expectedOutput: "B\n\nC\n\nD",
+			expectedOutput: "B\nC\nD",
 		},
 		{
 			name:           "Large context window",
@@ -730,7 +730,7 @@ func TestChunkSelector_SelectWithContextWindows(t *testing.T) {
 			contextAfter:   5,        // more than available chunks after
 			maxWords:       10,
 			expectedChunks: []string{"A", "B", "C", "D", "E", "F", "G"}, // all chunks
-			expectedOutput: "A\n\nB\n\nC\n\nD\n\nE\n\nF\n\nG",
+			expectedOutput: "A\nB\nC\nD\nE\nF\nG",
 		},
 	}
 
@@ -779,7 +779,7 @@ func TestChunkSelector_SelectWithContextWindows(t *testing.T) {
 			}
 
 			// verify no unexpected chunks are included
-			resultChunks := strings.Split(result, "\n\n")
+			resultChunks := strings.Split(result, "\n")
 			if len(resultChunks) != len(tt.expectedChunks) {
 				t.Errorf("Result has %d chunks, expected %d chunks. Result chunks: %v",
 					len(resultChunks), len(tt.expectedChunks), resultChunks)

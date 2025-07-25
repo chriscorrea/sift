@@ -83,7 +83,7 @@ func TestTokenCounter(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := counter.Count(tt.text)
 			// for token counting, we'll just verify it returns a positive number for non-empty text
-			// bc exact token counts can vary with encoding versions
+			// (exact token counts can vary with encoding versions)
 			if tt.text == "" {
 				if result != 0 {
 					t.Errorf("TokenCounter.Count(%q) = %d, want 0 for empty string", tt.text, result)
@@ -98,6 +98,116 @@ func TestTokenCounter(t *testing.T) {
 
 	if counter.Name() != "tokens (cl100k_base)" {
 		t.Errorf("TokenCounter.Name() = %q, want %q", counter.Name(), "tokens (cl100k_base)")
+	}
+}
+
+func TestTokenCounter_CreatePartialText(t *testing.T) {
+	counter, err := NewTokenCounter()
+	if err != nil {
+		t.Fatalf("Failed to create TokenCounter: %v", err)
+	}
+
+	tokenCounter, ok := counter.(*TokenCounter)
+	if !ok {
+		t.Fatalf("Failed to cast to TokenCounter")
+	}
+
+	tests := []struct {
+		name      string
+		text      string
+		maxTokens int
+		expectErr bool
+	}{
+		{
+			name:      "exact token limit",
+			text:      "Hello world, this is a test sentence with punctuation!",
+			maxTokens: 5,
+			expectErr: false,
+		},
+		{
+			name:      "single token",
+			text:      "Hello world from the test suite",
+			maxTokens: 1,
+			expectErr: false,
+		},
+		{
+			name:      "zero tokens",
+			text:      "Any text here",
+			maxTokens: 0,
+			expectErr: false,
+		},
+		{
+			name:      "negative tokens",
+			text:      "Any text here",
+			maxTokens: -1,
+			expectErr: false,
+		},
+		{
+			name:      "text fits completely",
+			text:      "Short",
+			maxTokens: 10,
+			expectErr: false,
+		},
+		{
+			name:      "empty text",
+			text:      "",
+			maxTokens: 5,
+			expectErr: false,
+		},
+		{
+			name:      "complex tokenization",
+			text:      "The JavaScript function() returns JSON data with HTTP status codes.",
+			maxTokens: 8,
+			expectErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			originalTokens := counter.Count(tt.text)
+			result := tokenCounter.CreatePartialText(tt.text, tt.maxTokens)
+
+			if tt.maxTokens <= 0 {
+				if result != "" {
+					t.Errorf("Expected empty result for maxTokens <= 0, got: %q", result)
+				}
+				return
+			}
+
+			if tt.text == "" {
+				if result != "" {
+					t.Errorf("Expected empty result for empty text, got: %q", result)
+				}
+				return
+			}
+
+			resultTokens := counter.Count(result)
+
+			if originalTokens <= tt.maxTokens {
+				if result != tt.text {
+					t.Errorf("Expected full text when it fits:\n  Original: %q\n  Result: %q\n  Original tokens: %d\n  Max tokens: %d",
+						tt.text, result, originalTokens, tt.maxTokens)
+				}
+			} else {
+				// partial text should return exact token count
+				if resultTokens != tt.maxTokens {
+					t.Errorf("Expected exactly %d tokens, got %d:\n  Text: %q\n  Result: %q\n  Original tokens: %d",
+						tt.maxTokens, resultTokens, tt.text, result, originalTokens)
+				}
+
+				// should be shorter than original
+				if resultTokens >= originalTokens {
+					t.Errorf("Expected truncation:\n  Original tokens: %d\n  Result tokens: %d\n  Text: %q\n  Result: %q",
+						originalTokens, resultTokens, tt.text, result)
+				}
+
+				// should be non-empty for reasonable token limits
+				if resultTokens == 0 && tt.maxTokens > 0 {
+					t.Errorf("Expected non-empty result for positive token limit:\n  Max tokens: %d\n  Text: %q",
+						tt.maxTokens, tt.text)
+				}
+			}
+		})
 	}
 }
 

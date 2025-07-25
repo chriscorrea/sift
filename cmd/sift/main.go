@@ -47,9 +47,17 @@ func buildConfig(cmd *cobra.Command, args []string) (app.Config, error) {
 		countingMethod = counter.Characters
 		maxUnits = charLimit
 	default:
-		// default to 2500 tokens (see also internal/app/chunk_selection.go)
-		maxUnits = 2500
-		countingMethod = counter.Tokens
+		// only apply default limits when no search query is specified
+		// search queries should return only relevant results, not fill to a limit
+		if search == "" {
+			// default to 2500 tokens for non-search scenarios
+			maxUnits = 2500
+			countingMethod = counter.Tokens
+		} else {
+			// search without explicit limits: no size constraint
+			maxUnits = 0
+			countingMethod = counter.Tokens // still need a counting method for chunking
+		}
 	}
 
 	// determine output format
@@ -88,20 +96,33 @@ func buildConfig(cmd *cobra.Command, args []string) (app.Config, error) {
 		sources = args
 	}
 
+	// get smart context configuration
+	contextTokens, _ := cmd.Flags().GetInt("context-tokens")
+
+	// use smart context if context-tokens flag is present (even without value, which uses default)
+	useSmartContext := cmd.Flags().Changed("context-tokens")
+
+	// apply default of 200 tokens if flag is present but no value specified
+	if useSmartContext && contextTokens == 0 {
+		contextTokens = 200
+	}
+
 	// return constructed config
 	return app.Config{
-		Sources:        sources,
-		Selector:       selector,
-		MaxUnits:       maxUnits,
-		CountingMethod: countingMethod,
-		SizingStrategy: sizingStrategy,
-		SearchQuery:    search,
-		OutputFormat:   outputFormat,
-		ContextBefore:  1, // default: 1 chunk before search results
-		ContextAfter:   2, // default: 2 chunks after search results
-		Quiet:          quiet,
-		Debug:          debug,
-		IncludeAll:     includeAll,
+		Sources:         sources,
+		Selector:        selector,
+		MaxUnits:        maxUnits,
+		CountingMethod:  countingMethod,
+		SizingStrategy:  sizingStrategy,
+		SearchQuery:     search,
+		OutputFormat:    outputFormat,
+		ContextBefore:   1, // default: 1 chunk before search results
+		ContextAfter:    2, // default: 2 chunks after search results
+		ContextUnits:    contextTokens,
+		UseSmartContext: useSmartContext,
+		Quiet:           quiet,
+		Debug:           debug,
+		IncludeAll:      includeAll,
 	}, nil
 }
 
@@ -159,23 +180,33 @@ Examples:
 func init() {
 	rootCmd.Flags().StringP("selector", "s", "", "CSS selector or extraction pattern")
 
-	// limit flags (see also 'configure mutually exclusive flag groups')
+	// limit flags
 	rootCmd.Flags().IntP("token-limit", "t", 0, "Limit output to number of tokens (default: 1000)")
 	rootCmd.Flags().IntP("word-limit", "w", 0, "Limit output to number of words")
 	rootCmd.Flags().IntP("character-limit", "c", 0, "Limit output to number of characters")
 
+	// limit flags are mutually exclusive
+	rootCmd.MarkFlagsMutuallyExclusive("token-limit", "word-limit", "character-limit")
+
 	// search functionality
 	rootCmd.Flags().String("search", "", "Search for keyword(s)")
+	rootCmd.Flags().Int("context-tokens", 0, "Set token budget for smart context around search results (default: 200 when flag is used)")
 
-	// output format flags (see also 'configure mutually exclusive flag groups')
+	// output format flags (see also 'configure mutually exclusive flag groups' below)
 	rootCmd.Flags().Bool("md", false, "Output in Markdown format (default)")
 	rootCmd.Flags().Bool("text", false, "Output in plain text format")
 	rootCmd.Flags().Bool("json", false, "Output in JSON format")
 
-	// sizing strategy flags (see also 'configure mutually exclusive flag groups')
+	// output format flags are mutually exclusive
+	rootCmd.MarkFlagsMutuallyExclusive("md", "text", "json")
+
+	// sizing strategy flags (see also 'configure mutually exclusive flag groups' below)
 	rootCmd.Flags().Bool("beginning", false, "Apply size constraints from the beginning of the document (default)")
 	rootCmd.Flags().Bool("middle", false, "Apply size constraints from the middle of the document, expanding outward")
 	rootCmd.Flags().Bool("end", false, "Apply size constraints from the end of the document, working backward")
+
+	// sizing strategy flags are mutually exclusive
+	rootCmd.MarkFlagsMutuallyExclusive("beginning", "middle", "end")
 
 	// other flags
 	rootCmd.Flags().BoolP("quiet", "q", false, "Suppress output messages")
@@ -183,10 +214,6 @@ func init() {
 	_ = rootCmd.Flags().MarkHidden("debug")
 	rootCmd.Flags().BoolP("include-all", "i", false, "Include all content without readability filtering")
 
-	// configure mutually exclusive flag groups
-	rootCmd.MarkFlagsMutuallyExclusive("token-limit", "word-limit", "character-limit")
-	rootCmd.MarkFlagsMutuallyExclusive("md", "text", "json")
-	rootCmd.MarkFlagsMutuallyExclusive("beginning", "middle", "end")
 }
 
 func main() {
