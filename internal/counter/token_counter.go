@@ -29,7 +29,7 @@ func NewTokenCounter() (Counter, error) {
 }
 
 // Count returns the number of tokens in the given text using cl100k_base encoding.
-// This can be called concurrently
+// The Count method can be called concurrently.
 func (tc *TokenCounter) Count(text string) int {
 	if text == "" {
 		return 0
