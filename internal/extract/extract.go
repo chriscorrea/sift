@@ -108,21 +108,15 @@ func convertToMarkdown(htmlString string) (string, error) {
 	// create converter with options for clean output
 	converter := md.NewConverter("", true, nil)
 
-	// config converter options for better formatting
-	converter.Use(md.Plugin(func(c *md.Converter) []md.Rule {
-		return []md.Rule{
-			// tidy up excessive whitespace
-			{
-				Filter: []string{"*"},
-				Replacement: func(content string, selec *goquery.Selection, opt *md.Options) *string {
-					// trim whitespace and normalize line breaks
-					cleaned := strings.TrimSpace(content)
-					result := strings.ReplaceAll(cleaned, "\n\n\n", "\n\n")
-					return &result
-				},
+	// add custom rule for <br> tags to produce single newlines
+	converter.AddRules(
+		md.Rule{
+			Filter: []string{"br"},
+			Replacement: func(content string, selec *goquery.Selection, opt *md.Options) *string {
+				return md.String("\n")
 			},
-		}
-	}))
+		},
+	)
 
 	// convert HTML to Markdown
 	markdown, err := converter.ConvertString(htmlString)
@@ -130,10 +124,47 @@ func convertToMarkdown(htmlString string) (string, error) {
 		return "", fmt.Errorf("failed to convert HTML to Markdown: %w", err)
 	}
 
-	// clean up the markdown output
-	cleaned := strings.TrimSpace(markdown)
-	// remove extra newlines
-	cleaned = strings.ReplaceAll(cleaned, "\n\n\n", "\n\n")
+	// gentle cleanup: normalize excessive whitespace
+	// preserve single and double newlines, including "  \n" patterns from <br> tags
+	cleaned := markdown
+
+	// normalize 3+ consecutive newlines to 2
+	for strings.Contains(cleaned, "\n\n\n") {
+		cleaned = strings.ReplaceAll(cleaned, "\n\n\n", "\n\n")
+	}
+
+	// only trim leading/trailing whitespace if it's truly excessive
+	// preserve a single trailing newline if present and preserve line break patterns
+	if strings.HasSuffix(cleaned, "\n") {
+		// trim any whitespace before the final newline, but preserve meaningful patterns
+		cleaned = strings.TrimRight(cleaned, " \t")
+	} else {
+		// no trailing newline, use gentle trimming that preserves line break patterns
+		cleaned = trimSpacesOnlyFromString(cleaned)
+	}
 
 	return cleaned, nil
+}
+
+// trimSpacesOnlyFromString removes leading and trailing spaces and tabs but preserves line breaks.
+// This is used to clean up markdown while maintaining intentional formatting like line breaks from <br> tags.
+func trimSpacesOnlyFromString(s string) string {
+	// handle empty string
+	if s == "" {
+		return s
+	}
+
+	// find first non-space, non-tab character
+	start := 0
+	for start < len(s) && (s[start] == ' ' || s[start] == '\t') {
+		start++
+	}
+
+	// find last non-space, non-tab character
+	end := len(s)
+	for end > start && (s[end-1] == ' ' || s[end-1] == '\t') {
+		end--
+	}
+
+	return s[start:end]
 }

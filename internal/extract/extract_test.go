@@ -219,7 +219,7 @@ func TestToMarkdown(t *testing.T) {
 				return
 			}
 
-			// Check that expected content is present
+			// check that expected content is present
 			for _, expected := range tt.contains {
 				if !strings.Contains(result, expected) {
 					t.Errorf("ToMarkdown() result should contain %q but doesn't.\nResult: %s", expected, result)
@@ -376,6 +376,57 @@ func TestToMarkdownEdgeCases(t *testing.T) {
 			if !tt.expectError && err == nil {
 				// just verify we get a result without crashing
 				_ = result
+			}
+		})
+	}
+}
+
+func TestToMarkdownLineBreaks(t *testing.T) {
+	tests := []struct {
+		name     string
+		html     string
+		selector string
+		contains []string
+	}{
+		{
+			name:     "br tags converted to line breaks",
+			html:     `<html><body><p>Line one<br>Line two<br>Line three</p></body></html>`,
+			selector: "p",
+			contains: []string{"Line one", "Line two", "Line three"},
+		},
+		{
+			name:     "self-closing br tags",
+			html:     `<html><body><p>First line<br/>Second line</p></body></html>`,
+			selector: "p",
+			contains: []string{"First line", "Second line"},
+		},
+		{
+			name:     "multiple br tags",
+			html:     `<html><body><p>Line one<br><br>Line two</p></body></html>`,
+			selector: "p",
+			contains: []string{"Line one", "Line two"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reader := strings.NewReader(tt.html)
+			result, err := extract.ToMarkdown(reader, tt.selector, false, nil)
+
+			if err != nil {
+				t.Fatalf("ToMarkdown() unexpected error: %v", err)
+			}
+
+			// check that expected content is present
+			for _, expected := range tt.contains {
+				if !strings.Contains(result, expected) {
+					t.Errorf("ToMarkdown() result should contain %q but doesn't", expected)
+				}
+			}
+
+			// verify lines are separated, not concatenated
+			if strings.Contains(result, "oneLine two") || strings.Contains(result, "lineSecond") {
+				t.Errorf("Lines should be separated by line breaks, not concatenated")
 			}
 		})
 	}

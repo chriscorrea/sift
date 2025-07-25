@@ -58,12 +58,14 @@ func SplitText(text string, maxChunkSize int) []string {
 		return []string{}
 	}
 
-	// handle empty input
-	text = strings.TrimSpace(text)
-	if text == "" {
-		slog.Debug("Empty text after trimming")
+	// handle empty input - check for pure whitespace first
+	if strings.TrimSpace(text) == "" {
+		slog.Debug("Empty text after full whitespace trimming")
 		return []string{}
 	}
+	
+	// use gentle trimming to preserve intentional line breaks
+	text = trimSpacesOnly(text)
 
 	// if text fits in one chunk, return it
 	if len(text) <= maxChunkSize {
@@ -96,7 +98,7 @@ func SplitText(text string, maxChunkSize int) []string {
 
 			// add the newly split chunks to the queue for the next level of processing
 			for _, sub := range subChunks {
-				if subTrimmed := strings.TrimSpace(sub); subTrimmed != "" {
+				if subTrimmed := trimSpacesOnly(sub); subTrimmed != "" {
 					nextQueue = append(nextQueue, subTrimmed)
 				}
 			}
@@ -108,7 +110,7 @@ func SplitText(text string, maxChunkSize int) []string {
 
 	// Add any remaining chunks that were processed by the last strategy
 	for _, chunk := range chunksToProcess {
-		if trimmed := strings.TrimSpace(chunk); trimmed != "" {
+		if trimmed := trimSpacesOnly(chunk); trimmed != "" {
 			finalChunks = append(finalChunks, trimmed)
 		}
 	}
@@ -133,55 +135,83 @@ func splitByDelimiter(text, delimiter, strategyName string, maxChunkSize int) []
 	case "sentence":
 		// for sentences, add the period back to each part (except the last)
 		for i, part := range parts {
-			if strings.TrimSpace(part) == "" {
+			if trimSpacesOnly(part) == "" {
 				continue // skip empty parts
 			}
 
 			if i < len(parts)-1 {
 				// add period back to maintain sentence structure
-				segments = append(segments, strings.TrimSpace(part)+".")
+				segments = append(segments, trimSpacesOnly(part)+".")
 			} else {
 				// last part doesn't get a period added
-				segments = append(segments, strings.TrimSpace(part))
+				segments = append(segments, trimSpacesOnly(part))
 			}
 		}
 
 	case "sentence-question":
 		// for question sentences, add the question mark back to each part (except the last)
 		for i, part := range parts {
-			if strings.TrimSpace(part) == "" {
+			if trimSpacesOnly(part) == "" {
 				continue // Skip empty parts
 			}
 
 			if i < len(parts)-1 {
 				// add question mark back to maintain sentence structure
-				segments = append(segments, strings.TrimSpace(part)+"?")
+				segments = append(segments, trimSpacesOnly(part)+"?")
 			} else {
 				// last part doesn't get a question mark added
-				segments = append(segments, strings.TrimSpace(part))
+				segments = append(segments, trimSpacesOnly(part))
 			}
 		}
 
 	case "sentence-exclamation":
 		// for exclamation sentences, add the exclamation mark back to each part (except the last)
 		for i, part := range parts {
-			if strings.TrimSpace(part) == "" {
+			if trimSpacesOnly(part) == "" {
 				continue // Skip empty parts
 			}
 
 			if i < len(parts)-1 {
 				// add exclamation mark back to maintain sentence structure
-				segments = append(segments, strings.TrimSpace(part)+"!")
+				segments = append(segments, trimSpacesOnly(part)+"!")
 			} else {
 				// last part doesn't get an exclamation mark added
-				segments = append(segments, strings.TrimSpace(part))
+				segments = append(segments, trimSpacesOnly(part))
+			}
+		}
+
+	case "line":
+		// for lines, preserve newlines when recombining
+		for i, part := range parts {
+			if trimmed := trimSpacesOnly(part); trimmed != "" {
+				if i < len(parts)-1 {
+					// add newline back to maintain line structure
+					segments = append(segments, trimmed+"\n")
+				} else {
+					// last part doesn't get a newline added
+					segments = append(segments, trimmed)
+				}
+			}
+		}
+
+	case "paragraph":
+		// for paragraphs, preserve double newlines when recombining
+		for i, part := range parts {
+			if trimmed := trimSpacesOnly(part); trimmed != "" {
+				if i < len(parts)-1 {
+					// add double newline back to maintain paragraph structure
+					segments = append(segments, trimmed+"\n\n")
+				} else {
+					// last part doesn't get double newlines added
+					segments = append(segments, trimmed)
+				}
 			}
 		}
 
 	default:
-		// for paragraphs, lines, and words - just trim and filter
+		// for words - preserve formatting while trimming spaces
 		for _, part := range parts {
-			if trimmed := strings.TrimSpace(part); trimmed != "" {
+			if trimmed := trimSpacesOnly(part); trimmed != "" {
 				segments = append(segments, trimmed)
 			}
 		}
@@ -235,7 +265,7 @@ func packWords(segments []string, maxChunkSize int) []string {
 		// if adding this segment would exceed the maxChunkSize, finalize current chunk
 		if currentChunk.Len() > 0 && currentChunk.Len()+spaceNeeded > maxChunkSize {
 			// current chunk is getting big enough, finalize it
-			if chunk := strings.TrimSpace(currentChunk.String()); chunk != "" {
+			if chunk := trimSpacesOnly(currentChunk.String()); chunk != "" {
 				result = append(result, chunk)
 			}
 			currentChunk.Reset()
@@ -249,7 +279,7 @@ func packWords(segments []string, maxChunkSize int) []string {
 	}
 
 	// add final chunk
-	if chunk := strings.TrimSpace(currentChunk.String()); chunk != "" {
+	if chunk := trimSpacesOnly(currentChunk.String()); chunk != "" {
 		result = append(result, chunk)
 	}
 
@@ -309,4 +339,27 @@ func mergeShortSegments(segments []string, maxChunkSize int, minChunkSize int) [
 	}
 
 	return result
+}
+
+// trimSpacesOnly removes leading and trailing spaces and tabs but preserves line breaks.
+// This is used to clean up chunks while maintaining intentional formatting like poetry line breaks.
+func trimSpacesOnly(s string) string {
+	// Handle empty string
+	if s == "" {
+		return s
+	}
+
+	// Find first non-space, non-tab character
+	start := 0
+	for start < len(s) && (s[start] == ' ' || s[start] == '\t') {
+		start++
+	}
+
+	// Find last non-space, non-tab character
+	end := len(s)
+	for end > start && (s[end-1] == ' ' || s[end-1] == '\t') {
+		end--
+	}
+
+	return s[start:end]
 }

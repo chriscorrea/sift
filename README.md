@@ -5,20 +5,19 @@
 [![CI](https://github.com/chriscorrea/sift/actions/workflows/push.yml/badge.svg?branch=main)](https://github.com/chriscorrea/sift/actions/workflows/push.yml)
 [![Latest Release](https://img.shields.io/github/v/release/chriscorrea/sift)](https://github.com/chriscorrea/sift/releases)
 
-
 **A prep tool for your text-based recipes**
 
-Sift is a command-line tool that extracts clean, structured text from messy sources. Feed it URLs, text files, or stdin, and `sift` automatically extracts core content.
-
- `sift` is a composable, pipeline-native tool designed to preprare content for large language model workflows or any pipeline requiring clean text. Use keyword search, CSS selectors, and flexible sizing strategies to refine results with precision.
+`sift` is a text extraction tool for the command line. Use its search to pinpoint relevant information, or simply extract clean, structured content from URLs, files, or stdin. It's a composable tool for building data pipelines for your LLM workflows
 
 ## ✨ Highlights
 
-- **Smart Content Extraction:** Automatically strips HTML tags and isolates the main content from any source using Mozilla's Readability algorithm. You can also target specific content with keyword search or CSS selectors.
+- **Smart Content Extraction:** Automatically removes HTML, ads, and boilerplate to isolate the main content using Mozilla's Readability algorithm. You can also target specific elements with CSS selectors.
 
-- **Flexible Inputs and Outputs:** Processes content from URLs, local files, or standard input with automatic source detection, and outputs to Markdown, plain text, or JSON.
+- **Field-Aware Search:** Pinpoint relevant information with a keyword search  that understands document structure.
 
-- **Precise Output Sizing:** Controls output size with token-level precision (using cl100k_base for LLM workflows), or by word and character counts.
+- **Flexible I/O:** Process content from URLs, local files, or standard input with automatic source detection. Output formats include Markdown, plain text, or JSON.
+
+- **Precise Output Sizing:** Control output size with token-level precision for LLM workflows, using the `cl100k_base` tokenizer, or by word and character counts.
 
 - **Composable by Design:** Built as a native command-line tool, so you can easily pipe content in and chain with other tools to create powerful text processing workflows.
 
@@ -63,23 +62,36 @@ slop --yaml "build a shopping list, organized by aisle"
 
 ### Flags
 
-| Flag | Short | Type | Default | Description |
-|------|-------|------|---------|-------------|
-| `--selector` | `-s` | `string` | `""` | CSS selector for content extraction |
-| `--search` | | `string` | `""` | Extract content via keyword search |
-| `--max-tokens` | `-t` | `int` | `1000` | Maximum number of tokens for output (default method) |
-| `--max-words` | `-w` | `int` | `0` | Maximum number of words for output |
-| `--max-chars` | `-c` | `int` | `0` | Maximum number of characters for output |
-| `--md` | | `bool` | `false` | Output in Markdown format (default) |
-| `--text` | | `bool` | `false` | Output in plain text format |
-| `--json` | | `bool` | `false` | Output in JSON format with chunks and links |
-| `--beginning` | | `bool` | `false` | Apply size constraints from document beginning (default) |
-| `--middle` | | `bool` | `false` | Apply size constraints from document middle, expanding outward |
-| `--end` | | `bool` | `false` | Apply size constraints from document end, working backward |
-| `--include-all` | `-i` | `bool` | `false` | Include all text without any filtering |
-| `--quiet` | `-q` | `bool` | `false` | Suppress output messages |
-| `--help` | `-h` | | | Show help information |
+#### Extraction & Search
+| Flag | Short | Description |
+|---|---|---|
+| `--search` | | Search for keywords and extract relevant context. |
+| `--context-tokens` | | Token budget for smart context around search results (default is 200). |
+| `--selector` | `-s` | CSS selector for content extraction. |
+| `--include-all`| `-i`| Include all content without readability filtering. |
 
+#### Output Sizing
+| Flag | Short | Description |
+|---|---|---|
+| `--token-limit` | `-t` | Maximum number of tokens for output (effective default is 2500). |
+| `--word-limit` | `-w` | Maximum number of words for output. |
+| `--character-limit` | `-c` | Maximum number of characters for output. |
+| `--beginning` | | Select content from the document's beginning (default). |
+| `--middle` | | Select content from the document's middle, expanding outward. |
+| `--end` | | Select content from the document's end, working backward. |
+
+#### Formatting & Behavior
+| Flag | Short | Description |
+|---|---|---|
+| `--md` | | Output in Markdown format (default). |
+| `--text` | | Output in plain text format. |
+| `--json` | | Output in JSON format. |
+
+#### Other
+| Flag | Short | Description |
+|---|---|---|
+| `--quiet`| `-q`| Suppress informational messages and progress spinners. |
+| `--help` | `-h` | Show help information. |
 
 ## Contributing
 
@@ -93,6 +105,7 @@ This project is licensed under the [BSD-3 License](LICENSE).
 - [x] Content fetching from multiple sources
 - [x] CSS selector support
 - [x] Multiple output formats (Markdown, text, JSON)
+- [x] Text search with BM25 field-aware text ranking
 - [ ] Content deduplication across sources
 - [ ] Recursive chunking
 - [ ] Streaming content processing for arbitrarily large files
